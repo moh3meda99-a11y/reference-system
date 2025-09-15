@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+  <meta charset="UTF-8">
+  <title>مولد المراجع للباحثين</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+      direction: rtl;
+      text-align: right;
+      background-color: #f9f9f9;
+      color: #333;
+    }
+    input, select, button {
+      margin: 5px 0;
+      padding: 10px;
+      width: 100%;
+      max-width: 600px;
+      box-sizing: border-box;
+      font-size: 16px;
+    }
+    button {
+      cursor: pointer;
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      margin-top: 5px;
+    }
+    button:hover { background-color: #45a049; }
+    .reference {
+      border: 1px solid #ddd;
+      padding: 10px;
+      margin-top: 10px;
+      background: #fff;
+      border-radius: 4px;
+    }
+    footer {
+      margin-top: 30px;
+      padding: 10px;
+      text-align: center;
+      font-size: 14px;
+      color: #555;
+      border-top: 1px solid #ccc;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+    }
+    footer img { width: 50px; height: 50px; border-radius: 50%; }
+    .reference a { color: #1a0dab; text-decoration: underline; }
+    #suggestions {
+      border: 1px solid #ccc;
+      max-width: 600px;
+      background: #fff;
+      position: absolute;
+      z-index: 10;
+    }
+    #suggestions div {
+      padding: 8px;
+      cursor: pointer;
+    }
+    #suggestions div:hover { background-color: #f0f0f0; }
+    .autocomplete-container { position: relative; }
+  </style>
+</head>
+<body>
+
+<h2>📚 مولد المراجع للباحثين</h2>
+
+<div class="autocomplete-container">
+  <label>أدخل عنوان البحث:</label>
+  <input type="text" id="query" placeholder="مثال: تأثير التعليم الإلكتروني على الطلاب" oninput="showSuggestions()">
+  <div id="suggestions"></div>
+</div>
+
+<label>اختر صيغة التوثيق:</label>
+<select id="style">
+  <option value="APA">APA</option>
+  <option value="MLA">MLA</option>
+  <option value="Chicago">Chicago</option>
+</select>
+
+<button onclick="getReference()">🔍 جلب المرجع</button>
+<button onclick="copyRef()">📋 نسخ المرجع</button>
+<button onclick="addToList()">➕ إضافة للقائمة</button>
+<button onclick="copyList()">📋 نسخ كل القائمة</button>
+
+<div id="result"></div>
+
+<h3>قائمة المراجع:</h3>
+<div id="refList"></div>
+
+<button onclick="downloadWord()">⬇️ تنزيل كملف Word</button>
+<button onclick="clearList()">🗑️ مسح القائمة</button>
+
+<!-- Footer -->
+<footer>
+  <img src="myphoto.jpg" alt="صورتي">
+  <span>© 2025 ناصر مهران. جميع الحقوق محفوظة.</span>
+</footer>
+
+<script>
+let references = [];
+let suggestions = [];
+
+window.onload = function() {
+  const saved = localStorage.getItem("savedReferences");
+  if (saved) { references = JSON.parse(saved); renderList(); }
+}
+
+async function showSuggestions() {
+  const query = document.getElementById("query").value.trim();
+  const sugBox = document.getElementById("suggestions");
+  sugBox.innerHTML = "";
+  if(!query) return;
+  try {
+    const res = await fetch(`https://api.crossref.org/works?query.title=${encodeURIComponent(query)}&rows=5`);
+    const json = await res.json();
+    suggestions = json.message.items || [];
+    suggestions.forEach(item => {
+      const div = document.createElement("div");
+      div.textContent = item.title ? item.title[0] : "";
+      div.onclick = () => {
+        document.getElementById("query").value = div.textContent;
+        sugBox.innerHTML = "";
+      };
+      sugBox.appendChild(div);
+    });
+  } catch(e) { console.log("خطأ في جلب الاقتراحات:", e); }
+}
+
+async function getReference() {
+  const query = document.getElementById("query").value.trim();
+  const style = document.getElementById("style").value;
+  if(!query) return alert("من فضلك أدخل عنوان البحث");
+
+  let data = {title: query, authors: "", year: "غير معروف", journal: "", volume: "", issue: "", pages: "", publisher: "", doi: ""};
+
+  try {
+    const res = await fetch(`https://api.crossref.org/works?query.title=${encodeURIComponent(query)}&rows=1`);
+    const json = await res.json();
+    const item = json.message.items ? json.message.items[0] : json.message;
+
+    data.title = item.title ? item.title[0] : query;
+    data.year = item.created ? item.created["date-parts"][0][0] : "غير معروف";
+    data.authors = item.author ? item.author.map(a => `${a.given} ${a.family}`).join(", ") : "";
+    data.journal = item["container-title"] ? item["container-title"][0] : "";
+    data.volume = item.volume || "";
+    data.issue = item.issue || "";
+    data.pages = item.page || "";
+    data.publisher = item.publisher || "";
+    data.doi = item.DOI ? `https://doi.org/${item.DOI}` : "";
+  } catch(e) { console.log("خطأ في جلب البيانات:", e); }
+
+  const formattedHTML = formatCitationHTML(data, style);
+  document.getElementById("result").innerHTML = `<div class="reference">${formattedHTML}</div>`;
+  return formattedHTML;
+}
+
+function formatCitationHTML(c, style) {
+  let ref = "";
+  if(style==="APA") {
+    if(c.authors) ref += `${c.authors}. `;
+    ref += `${c.title}. `;
+    if(c.journal) ref += `${c.journal}, `;
+    if(c.volume) ref += `vol. ${c.volume} `;
+    if(c.issue) ref += `(${c.issue}) `;
+    if(c.pages) ref += `pp. ${c.pages}. `;
+    if(c.publisher) ref += `${c.publisher}. `;
+    if(c.year) ref += `(${c.year}).`;
+  } else if(style==="MLA") {
+    if(c.authors) ref += `${c.authors}. `;
+    ref += `"${c.title}." `;
+    if(c.journal) ref += `${c.journal}, `;
+    if(c.volume) ref += `vol. ${c.volume} `;
+    if(c.issue) ref += `(${c.issue}) `;
+    if(c.year) ref += `${c.year}, `;
+    if(c.pages) ref += `pp. ${c.pages}. `;
+    if(c.publisher) ref += `${c.publisher}. `;
+  } else if(style==="Chicago") {
+    if(c.authors) ref += `${c.authors}. `;
+    ref += `"${c.title}." `;
+    if(c.journal) ref += `${c.journal} `;
+    if(c.volume) ref += `${c.volume}${c.issue ? '('+c.issue+')':''} `;
+    if(c.year) ref += `(${c.year}): `;
+    if(c.pages) ref += `${c.pages}. `;
+    if(c.publisher) ref += `${c.publisher}. `;
+  }
+  if(c.doi) ref += `<br>رابط الوصول: <a href="${c.doi}" target="_blank">${c.doi}</a>`;
+  return ref;
+}
+
+function copyRef() {
+  const text = document.querySelector("#result .reference")?.innerText;
+  if(!text) return alert("لا يوجد مرجع لنسخه");
+  navigator.clipboard.writeText(text);
+  alert("تم نسخ المرجع");
+}
+
+function addToList() {
+  const htmlContent = document.querySelector("#result .reference")?.innerHTML;
+  if(!htmlContent) return alert("لا يوجد مرجع لإضافته");
+  references.push(htmlContent);
+  saveReferences();
+  renderList();
+}
+
+function renderList() {
+  const list = document.getElementById("refList");
+  list.innerHTML = "";
+  references.forEach(ref => {
+    const div = document.createElement("div");
+    div.className = "reference";
+    div.innerHTML = ref;
+    list.appendChild(div);
+  });
+}
+
+function saveReferences() { localStorage.setItem("savedReferences", JSON.stringify(references)); }
+
+function clearList() {
+  if(confirm("هل أنت متأكد أنك تريد مسح كل المراجع؟")){
+    references=[];
+    localStorage.removeItem("savedReferences");
+    renderList();
+    alert("تم مسح القائمة بنجاح");
+  }
+}
+
+function downloadWord() {
+  if(references.length===0) return alert("لا توجد مراجع للتنزيل");
+  let content = references.join("<br><br>");
+  let blob = new Blob([`<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word"><body>${content}</body></html>`], {type: "application/msword"});
+  let url = URL.createObjectURL(blob);
+  let a=document.createElement("a");
+  a.href=url;
+  a.download=`المراجع-${new Date().toISOString().split("T")[0]}.doc`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function copyList() {
+  if(references.length===0) return alert("لا توجد مراجع لنسخها");
+  let temp = document.createElement("textarea");
+  temp.value = references.map(r => r.replace(/<[^>]+>/g, '')).join("\n\n");
+  document.body.appendChild(temp);
+  temp.select();
+  document.execCommand("copy");
+  document.body.removeChild(temp);
+  alert("تم نسخ كل قائمة المراجع");
+}
+</script>
+</body>
+</html>
