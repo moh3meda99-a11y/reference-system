@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+<meta charset="UTF-8">
+<title>📚 محرك التوثيق الأكاديمي المتكامل</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<style>
+body { font-family: Arial, sans-serif; direction: rtl; background:linear-gradient(to bottom, #f0f4f8, #e0e7ff); margin:0; padding:0;}
+header { background:#4f46e5; color:white; text-align:center; font-size:26px; padding:20px; font-weight:bold; border-bottom:5px solid #3730a3; }
+.container { max-width:1000px; margin:20px auto; background:#fff; padding:25px; border-radius:15px; box-shadow:0 5px 20px rgba(0,0,0,0.1);}
+input[type="text"], select { width:100%; padding:14px; margin:10px 0; border-radius:10px; border:1px solid #ccc; font-size:16px;}
+button { background:#4f46e5; color:white; padding:10px 18px; border:none; border-radius:10px; cursor:pointer; margin:5px 2px; font-size:16px; transition:0.3s;}
+button:hover { background:#3730a3; }
+.result-card { background:#eef2ff; padding:15px; margin:12px 0; border-radius:12px; border-left:5px solid #4f46e5; box-shadow:0 4px 10px rgba(0,0,0,0.08); transition:0.3s; }
+.result-card.local { border-left-color:#16a34a; } 
+.result-card:hover { transform:translateY(-3px); box-shadow:0 6px 15px rgba(0,0,0,0.15);}
+.result-card p { margin:5px 0; font-size:14px; color:#1e3a8a;}
+.result-card a { text-decoration:none; color:#1e3a8a; font-weight:bold;}
+.suggestion-box { background:#fff; border:1px solid #ccc; border-radius:10px; max-height:200px; overflow-y:auto; position:absolute; width:calc(100% - 28px); z-index:10;}
+.suggestion-item { padding:10px; cursor:pointer;}
+.suggestion-item:hover { background:#f0f0ff;}
+.card-buttons { margin-top:10px; display:flex; gap:5px; flex-wrap:wrap; }
+.card-buttons button { flex:1; font-size:14px; }
+.list-container { margin-top:20px;}
+.list-container textarea { width:100%; height:200px; border-radius:10px; border:1px solid #ccc; padding:10px; resize:none; font-size:14px;}
+footer { display:flex; align-items:center; justify-content:center; gap:10px; margin:20px 0; font-size:14px; color:#555;}
+footer img { width:50px; height:50px; border-radius:50%; border:1px solid #ccc; }
+</style>
+</head>
+<body>
+
+<header>
+  📚 محرك التوثيق الأكاديمي المتكامل
+</header>
+
+<div class="container">
+<h2>اكتب عنوان البحث:</h2>
+<div style="position:relative;">
+<input type="text" id="searchInput" placeholder="اكتب عنوان البحث هنا..." oninput="suggestTitles()">
+<div id="suggestions" class="suggestion-box" style="display:none;"></div>
+</div>
+
+<div>
+  <select id="refStyle">
+    <option value="APA">APA</option>
+    <option value="MLA">MLA</option>
+    <option value="Chicago">Chicago</option>
+  </select>
+  <button onclick="generateReferences()"><i class="fa-solid fa-file-lines"></i> التوثيق</button>
+</div>
+
+<h3>نتائج البحث:</h3>
+<div id="results"></div>
+
+<div class="list-container">
+  <button onclick="addAllToList()"><i class="fa-solid fa-plus"></i> إضافة كل النتائج للقائمة</button>
+  <button onclick="clearList()"><i class="fa-solid fa-trash"></i> مسح القائمة</button>
+  <button onclick="copyList()"><i class="fa-solid fa-copy"></i> نسخ القائمة</button>
+  <button onclick="exportWord()"><i class="fa-solid fa-file-word"></i> تصدير Word</button>
+  <textarea id="referenceList" readonly></textarea>
+</div>
+</div>
+
+<footer>
+  <span>حقوق الملكية © ناصر مهران 2025</span>
+  <img src="https://i.imgur.com/2m3gk8S.png" alt="ناصر مهران">
+</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/docx/8.0.0/docx.min.js"></script>
+
+<script>
+let references = [];
+let suggestionsData = [];
+let currentResults = [];
+
+function renderList(){ document.getElementById("referenceList").value = references.join("\n"); }
+function addAllToList(){ 
+  if(currentResults.length===0){ alert("لا توجد نتائج لإضافتها"); return; }
+  currentResults.forEach(r=>references.push(r.ref)); 
+  renderList(); 
+  alert("تمت إضافة جميع النتائج للقائمة ✅");
+}
+function clearList(){ references=[]; renderList(); }
+function copyList(){ navigator.clipboard.writeText(references.join("\n")); alert("تم نسخ القائمة ✅"); }
+async function exportWord(){ 
+  if(references.length===0){ alert("لا توجد مراجع للتصدير!"); return; }
+  const { Document, Packer, Paragraph, TextRun } = docx;
+  const doc = new Document({sections:[{children: references.map(r=>new Paragraph({children:[new TextRun(r)]}))}]});
+  const blob = await Packer.toBlob(doc);
+  saveAs(blob,"references.docx");
+}
+
+function formatRef(title, authors, year, journal, publisher, style){
+  let ref = "";
+  if(style==="APA") ref = `${authors} (${year}). ${title}. ${journal ? journal+". " : ""}${publisher ? publisher+".":""}`;
+  else if(style==="MLA") ref = `${authors}. "${title}." ${journal ? journal+". " : ""}${publisher ? publisher+".":""}`;
+  else if(style==="Chicago") ref = `${authors}. "${title}." ${journal ? journal+". " : ""}${publisher ? publisher+".":""}`;
+  else ref = `${title} - ${authors} (${year}) ${journal ? journal+"." : ""} ${publisher ? publisher+".":""}`;
+  return ref;
+}
+
+async function suggestTitles(){
+  const query=document.getElementById("searchInput").value.trim();
+  const suggestionsDiv=document.getElementById("suggestions");
+  if(query.length<2){ suggestionsDiv.style.display="none"; return; }
+  try{
+    const res=await fetch(`https://api.crossref.org/works?query.title=${encodeURIComponent(query)}&rows=5`);
+    const data=await res.json();
+    suggestionsData=data.message.items||[];
+    suggestionsDiv.innerHTML="";
+    suggestionsData.forEach(item=>{
+      const div=document.createElement("div");
+      div.className="suggestion-item";
+      div.textContent=item.title[0];
+      div.onclick=()=>{ document.getElementById("searchInput").value=item.title[0]; suggestionsDiv.style.display="none"; };
+      suggestionsDiv.appendChild(div);
+    });
+    suggestionsDiv.style.display = suggestionsData.length? "block":"none";
+  }catch(err){ console.error(err); suggestionsDiv.style.display="none"; }
+}
+
+async function generateReferences(){
+  const query=document.getElementById("searchInput").value.trim();
+  const style=document.getElementById("refStyle").value;
+  const resultsDiv=document.getElementById("results");
+  if(!query){ alert("اكتب عنوان البحث أولاً!"); return; }
+  resultsDiv.innerHTML="جارٍ البحث...";
+  currentResults=[];
+  try{
+    const res=await fetch(`https://api.crossref.org/works?query.title=${encodeURIComponent(query)}&rows=5`);
+    const data=await res.json();
+    resultsDiv.innerHTML="";
+    if(!data.message.items.length){ resultsDiv.innerHTML="لم يتم العثور على نتائج"; return; }
+    data.message.items.forEach(item=>{
+      const authors=item.author?item.author.map(a=>a.given+" "+a.family).join(", "):"غير محدد";
+      const year=item.published?.["date-parts"]?.[0]?.[0] || "غير محدد";
+      const journal=item["container-title"]?.[0] || "";
+      const publisher=item.publisher || "";
+      const ref=formatRef(item.title[0], authors, year, journal, publisher, style);
+      currentResults.push({ref});
+      const div=document.createElement("div");
+      div.className="result-card";
+      div.innerHTML=`<a href="${item.URL}" target="_blank">${item.title[0]}</a>
+      <p>${authors} - ${year} - ${journal} ${publisher}</p>
+      <div class="card-buttons">
+        <button onclick="navigator.clipboard.writeText('${ref}'); alert('تم نسخ المرجع ✅')"><i class="fa-solid fa-copy"></i> نسخ التوثيق</button>
+        <button onclick="references.push('${ref}'); renderList(); alert('تمت الإضافة للقائمة ✅')"><i class="fa-solid fa-plus"></i> إضافة للقائمة</button>
+        <button onclick="window.open('${item.URL}','_blank')"><i class="fa-solid fa-link"></i> رابط المصدر</button>
+      </div>`;
+      resultsDiv.appendChild(div);
+    });
+  }catch(err){ 
+    console.error(err); 
+    resultsDiv.innerHTML="حدث خطأ أثناء البحث"; 
+  }
+}
+</script>
+
+</body>
+</html>
