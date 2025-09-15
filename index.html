@@ -23,7 +23,8 @@ button:hover { background:#3730a3; }
 .card-buttons button { flex:1; font-size:14px; }
 .list-container { margin-top:20px;}
 .list-container textarea { width:100%; height:200px; border-radius:10px; border:1px solid #ccc; padding:10px; resize:none; font-size:14px;}
-footer { text-align:center; margin:20px 0; font-size:14px; color:#555;}
+footer { display:flex; align-items:center; justify-content:center; gap:10px; margin:20px 0; font-size:14px; color:#555;}
+footer img { width:30px; height:30px; border-radius:50%; border:1px solid #ccc; }
 </style>
 </head>
 <body>
@@ -61,7 +62,10 @@ footer { text-align:center; margin:20px 0; font-size:14px; color:#555;}
 </div>
 </div>
 
-<footer>حقوق الملكية © ناصر مهران 2025</footer>
+<footer>
+  <span>حقوق الملكية © ناصر مهران 2025</span>
+  <img src="your-photo.jpg" alt="ناصر مهران">
+</footer>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/docx/8.0.0/docx.min.js"></script>
