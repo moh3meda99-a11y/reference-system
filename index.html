@@ -1,145 +1,133 @@
 <!DOCTYPE html>
-<html lang="ar">
+<html lang="ar" dir="rtl">
 <head>
-  <meta charset="UTF-8">
-  <title>📚 نظام إدارة المراجع</title>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/docx/8.1.0/docx.umd.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
-  <style>
-    body { font-family: Tahoma, Arial; direction: rtl; margin: 20px; background: #f9f9f9; }
-    h1 { color: #333; }
-    .folder { border: 1px solid #ccc; padding: 10px; margin: 10px 0; background: #fff; border-radius: 8px; }
-    button { margin: 5px; padding: 6px 12px; border: none; border-radius: 5px; cursor: pointer; }
-    .add { background: #28a745; color: #fff; }
-    .pdf { background: #6f42c1; color: #fff; }
-    .word { background: #fd7e14; color: #fff; }
-    .folder-btn { background: #007bff; color: #fff; }
-    input { padding: 6px; border: 1px solid #ccc; border-radius: 5px; }
-  </style>
+<meta charset="UTF-8">
+<title>نظام المراجع المتقدم</title>
+<style>
+body { font-family:"Tahoma",sans-serif; margin:0; padding:0; background:#f4f6f9; color:#333; }
+header { background:#4a90e2; color:white; padding:20px; text-align:center; font-size:24px; font-weight:bold; }
+.container { max-width:1000px; margin:20px auto; padding:20px; }
+.search-box { text-align:center; margin-bottom:15px; position:relative; }
+.search-box input { width:75%; padding:14px; font-size:16px; border:1px solid #ccc; border-radius:10px; }
+#suggestions { text-align:right; background:white; border:1px solid #ccc; border-radius:8px; display:none; max-width:75%; margin:0 auto; position:absolute; z-index:10; }
+#suggestions div { padding:8px; cursor:pointer; }
+#suggestions div:hover { background:#e0e0e0; }
+.search-actions { text-align:center; margin-bottom:30px; }
+.search-actions button { padding:12px 25px; margin:5px; font-size:15px; border:none; border-radius:10px; cursor:pointer; background:#4a90e2; color:white; transition:0.3s;}
+.search-actions button:hover { background:#357ab8; }
+.results { display:grid; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); gap:20px; }
+.card { background:white; border-radius:12px; padding:15px; box-shadow:0 4px 12px rgba(0,0,0,0.1); position:relative; transition:transform 0.2s; }
+.card:hover { transform:translateY(-5px);}
+.card h3 { margin:0 0 10px 0; font-size:18px; color:#2c3e50; }
+.card p { margin:5px 0; font-size:14px; color:#555; }
+.card a { color:#4a90e2; text-decoration:none; font-size:14px; }
+.smart-icon { position:absolute; top:15px; left:15px; cursor:pointer; font-size:18px; background:#f1f1f1; border-radius:50%; padding:6px; transition:0.3s;}
+.smart-icon:hover { background:#e0e0e0; }
+.popup { display:none; position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); background:white; padding:25px; border-radius:12px; box-shadow:0 6px 18px rgba(0,0,0,0.3); z-index:1000; width:450px; max-width:90%; }
+.popup h4 { margin-top:0; color:#4a90e2; }
+.popup button { background:#4a90e2; color:white; border:none; padding:10px 18px; margin-top:15px; border-radius:8px; cursor:pointer; }
+.overlay { display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); z-index:900;}
+footer { background:#4a90e2; color:white; padding:20px; text-align:center; margin-top:40px; }
+footer img { width:60px; height:60px; border-radius:50%; margin-top:10px; }
+</style>
 </head>
 <body>
-
-  <h1>📚 نظام إدارة المراجع</h1>
-
-  <div>
-    <input id="folderName" placeholder="اسم الفولدر الجديد">
-    <button class="folder-btn" onclick="createFolder()">➕ إنشاء فولدر</button>
+<header>📚 نظام المراجع المتقدم بالعربية والعالمية</header>
+<div class="container">
+  <div class="search-box">
+    <input type="text" id="query" placeholder="✍️ اكتب عنوان البحث هنا..." oninput="showSuggestions(this.value)" autocomplete="off"/>
+    <div id="suggestions"></div>
   </div>
-
-  <div>
-    <button class="add" onclick="addExample()">➕ إضافة مرجع تجريبي إلى (عام)</button>
+  <div class="search-actions">
+    <button onclick="searchAll()">🔎 بحث</button>
+    <button onclick="startVoiceSearch()">🎙️ بحث صوتي</button>
+    <button onclick="exportPDF()">📄 تصدير PDF</button>
+    <button onclick="exportWord()">📝 تصدير Word</button>
   </div>
+  <div id="results" class="results"></div>
+</div>
+<div class="overlay" id="overlay"></div>
+<div class="popup" id="popup">
+  <h4>📑 ملخص الدراسة</h4>
+  <p id="popupContent"></p>
+  <button onclick="closePopup()">إغلاق</button>
+</div>
+<footer>
+حقوق النشر © 2025 – نظام المراجع المتقدم<br>
+تم التطوير بواسطة <strong>Naser Mahran</strong><br>
+<img src="naser_photo.jpg" alt="Naser Mahran">
+</footer>
 
-  <div id="library"></div>
+<script>
+const sampleTitles = [
+  "تأثير التعليم على المجتمع",
+  "الابتكار في تكنولوجيا المعلومات",
+  "إدارة المخاطر في المشاريع",
+  "الصحة والسلامة المهنية في المصانع",
+  "تطور البحث العلمي في العالم العربي"
+];
 
-  <script>
-    const { jsPDF } = window.jspdf;
-    const { Document, Packer, Paragraph, Table, TableRow, TableCell, WidthType, TextRun } = window.docx;
+const arabicReferences = [
+  {title:"تأثير التعليم على المجتمع", author:"د. أحمد علي", year:"2023", source:"دار المنظومة", link:"#"},
+  {title:"الابتكار في تكنولوجيا المعلومات", author:"د. سارة محمد", year:"2022", source:"بنك المعرفة المصري", link:"#"}
+];
 
-    let library = { "عام": [] };
+function showSuggestions(value){
+  const sugDiv = document.getElementById("suggestions");
+  sugDiv.innerHTML = "";
+  if(!value){ sugDiv.style.display="none"; return; }
+  const matches = sampleTitles.filter(title => title.includes(value));
+  matches.forEach(m=>{
+    const div = document.createElement("div");
+    div.innerText = m;
+    div.onclick = ()=>{ document.getElementById("query").value = m; sugDiv.style.display="none"; }
+    sugDiv.appendChild(div);
+  });
+  sugDiv.style.display = matches.length ? "block" : "none";
+}
 
-    function createFolder() {
-      const name = document.getElementById("folderName").value.trim();
-      if (name && !library[name]) {
-        library[name] = [];
-        document.getElementById("folderName").value = "";
-        renderLibrary();
-      }
-    }
+async function searchAll() {
+  const query = document.getElementById("query").value;
+  const resultsDiv = document.getElementById("results");
+  resultsDiv.innerHTML = "";
+  if(!query){ resultsDiv.innerHTML = "<p style='text-align:center;'>⚠️ من فضلك اكتب عنوان البحث.</p>"; return; }
 
-    function addExample() {
-      const ref = { title: "منهجية البحث العلمي", author: "أحمد علي", year: "2023", source: "دار النشر العربية" };
-      library["عام"].push(ref);
-      renderLibrary();
-    }
+  // جلب النتائج العالمية عبر API (مؤقت كمثال)
+  const globalResults = [
+    {title: query+" - دراسة تحليلية", author:"د. أحمد علي", year:"2023", source:"Google Scholar", link:"https://scholar.google.com/scholar?q="+encodeURIComponent(query)},
+    {title: query+" وأثرها على المجتمع", author:"د. سارة محمد", year:"2022", source:"Semantic Scholar", link:"https://www.semanticscholar.org/search?q="+encodeURIComponent(query)}
+  ];
 
-    function exportPDF(folder, refs) {
-      const doc = new jsPDF();
-      doc.setFontSize(16);
-      doc.text(`المراجع - ${folder}`, 14, 20);
+  const allResults = [...globalResults, ...arabicReferences];
 
-      const rows = refs.map((r, i) => [i+1, r.title, r.author, r.year, r.source]);
-      doc.autoTable({ head: [["#", "العنوان", "المؤلف", "السنة", "المصدر"]], body: rows, startY: 30 });
+  allResults.forEach(r=>{
+    const card = document.createElement("div");
+    card.className = "card";
+    card.innerHTML = `
+      <span class="smart-icon" onclick="showPopup('${r.title}')">💡</span>
+      <h3>${r.title}</h3>
+      <p><strong>المؤلف:</strong> ${r.author}</p>
+      <p><strong>السنة:</strong> ${r.year}</p>
+      <p><strong>المصدر:</strong> ${r.source}</p>
+      <a href="${r.link}" target="_blank">🔗 الوصول المباشر</a>
+    `;
+    resultsDiv.appendChild(card);
+  });
+}
 
-      doc.save(`${folder}_references.pdf`);
-    }
-
-    async function exportWord(folder, refs) {
-      const rows = refs.map((r, i) =>
-        new TableRow({
-          children: [
-            new TableCell({ children: [new Paragraph(String(i+1))] }),
-            new TableCell({ children: [new Paragraph(r.title)] }),
-            new TableCell({ children: [new Paragraph(r.author)] }),
-            new TableCell({ children: [new Paragraph(r.year)] }),
-            new TableCell({ children: [new Paragraph(r.source)] }),
-          ],
-        })
-      );
-
-      const doc = new Document({
-        sections: [{
-          children: [
-            new Paragraph({ children: [new TextRun({ text: `📚 المراجع - ${folder}`, bold: true, size: 28 })] }),
-            new Table({
-              width: { size: 100, type: WidthType.PERCENTAGE },
-              rows: [
-                new TableRow({
-                  children: [
-                    new TableCell({ children: [new Paragraph("#")] }),
-                    new TableCell({ children: [new Paragraph("العنوان")] }),
-                    new TableCell({ children: [new Paragraph("المؤلف")] }),
-                    new TableCell({ children: [new Paragraph("السنة")] }),
-                    new TableCell({ children: [new Paragraph("المصدر")] }),
-                  ]
-                }),
-                ...rows
-              ]
-            })
-          ]
-        }]
-      });
-
-      const blob = await Packer.toBlob(doc);
-      saveAs(blob, `${folder}_references.docx`);
-    }
-
-    function renderLibrary() {
-      const container = document.getElementById("library");
-      container.innerHTML = "";
-      Object.keys(library).forEach(folder => {
-        const div = document.createElement("div");
-        div.className = "folder";
-        div.innerHTML = `<h3>📂 ${folder}</h3>`;
-        const list = document.createElement("ul");
-        library[folder].forEach(r => {
-          const li = document.createElement("li");
-          li.textContent = `${r.title} – ${r.author} (${r.year})`;
-          list.appendChild(li);
-        });
-        div.appendChild(list);
-        if (library[folder].length > 0) {
-          const pdfBtn = document.createElement("button");
-          pdfBtn.className = "pdf";
-          pdfBtn.textContent = "📄 تصدير PDF";
-          pdfBtn.onclick = () => exportPDF(folder, library[folder]);
-
-          const wordBtn = document.createElement("button");
-          wordBtn.className = "word";
-          wordBtn.textContent = "📝 تصدير Word";
-          wordBtn.onclick = () => exportWord(folder, library[folder]);
-
-          div.appendChild(pdfBtn);
-          div.appendChild(wordBtn);
-        }
-        container.appendChild(div);
-      });
-    }
-
-    renderLibrary();
-  </script>
-
+function showPopup(title){
+  document.getElementById("popupContent").innerText =
+    "الأهمية: " + title + "\n" +
+    "الأهداف: توضيح المفاهيم ودراسة التأثير.\n" +
+    "النتائج: النتائج أوضحت فعالية المنهج.\n" +
+    "الملخص: الدراسة تقدم رؤية شاملة للموضوع.";
+  document.getElementById("overlay").style.display="block";
+  document.getElementById("popup").style.display="block";
+}
+function closePopup(){ document.getElementById("overlay").style.display="none"; document.getElementById("popup").style.display="none";}
+function startVoiceSearch(){ alert("🎙️ البحث الصوتي سيُضاف لاحقًا!"); }
+function exportPDF(){ alert("📄 تصدير PDF سيُضاف لاحقًا!"); }
+function exportWord(){ alert("📝 تصدير Word سيُضاف لاحقًا!"); }
+</script>
 </body>
 </html>
